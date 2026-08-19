@@ -1,0 +1,34 @@
+{
+  "name": "@warppay402/sdk",
+  "version": "1.0.1",
+  "description": "Official TypeScript SDK for WarpPay402 pay-per-use AI tools on Base Mainnet",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/golfgolfgolf200/warppay402-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/golfgolfgolf200/warppay402-sdk/issues"
+  },
+  "homepage": "https://github.com/golfgolfgolf200/warppay402-sdk#readme",
+  "keywords": [
+    "x402",
+    "base",
+    "ai-agents",
+    "mcp",
+    "monetization",
+    "langchain"
+  ],
+  "dependencies": {
+    "@golfgolfgolf200/x402-monetize": "^1.0.2",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.0.0"
+  }
+}
