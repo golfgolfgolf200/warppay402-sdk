@@ -17,22 +17,46 @@ const client = new WarpPayClient({
 });
 
 async function main() {
-  // Scrapes any URL into clean Markdown ($0.01 USDC)
+  // 1. Scrape any URL into clean Markdown ($0.01 USDC)
   const page = await client.scrapeWeb("https://news.ycombinator.com");
   console.log("Title:", page.title);
   console.log("Markdown:", page.markdown);
 
-  // Fetch Base wallet analytics ($0.02 USDC)
+  // 2. JS Browser Scraper ($0.05 USDC)
+  const rendered = await client.browserScrape("https://example.com");
+  console.log("Rendered Content:", rendered);
+
+  // 3. Capture Full-Page Screenshot ($0.10 USDC)
+  const screenshot = await client.renderScreenshot("https://example.com");
+  console.log("Screenshot Data:", screenshot);
+
+  // 4. Extract Structured JSON Data ($0.15 USDC)
+  const extracted = await client.extractJson("https://news.ycombinator.com", {
+    title: "string",
+    topStories: "array",
+  });
+  console.log("Extracted Data:", extracted);
+
+  // 5. Fetch Base Wallet Analytics ($0.02 USDC)
   const analytics = await client.getBaseAnalytics("0x556c77792642E8ff95eC930FFb8D46a76579126E");
   console.log("ETH Balance:", analytics.ethBalance);
 
-  // Extract PDF text preview ($0.05 USDC)
-  const pdf = await client.extractPdf("https://example.com/document.pdf");
+  // 6. Extract PDF Text Preview ($0.05 USDC)
+  const pdf = await client.extractPdf("https://example.com/document.pdf");  
   console.log("Preview:", pdf.textPreview);
 }
 
 main();
 ```
+## 🛠️ Available Methods & Pricing
+
+* **`scrapeWeb(url)`** — `$0.01 USDC` — Extracts clean Markdown from web pages.
+* **`getBaseAnalytics(address)`** — `$0.02 USDC` — Fetches ETH balance and nonce stats.
+* **`browserScrape(url)`** — `$0.05 USDC` — Unblockable JS browser scraping via proxy workers.
+* **`extractPdf(pdfUrl)`** — `$0.05 USDC` — Parses text preview from public PDF URLs.
+* **`renderScreenshot(url)`** — `$0.10 USDC` — Renders target URL and returns full-page screenshot data.
+* **`extractJson(url, schema?)`** — `$0.15 USDC` — Parses web pages into structured JSON data.
+
 ## 🛠️ LangChain Integration
 ```typescript
 import { WarpPayClient, createWarpPayLangChainTools } from "@warppay402/sdk";

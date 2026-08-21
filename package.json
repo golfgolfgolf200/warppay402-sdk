@@ -1,6 +1,6 @@
 {
   "name": "@warppay402/sdk",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "Official TypeScript SDK for WarpPay402 pay-per-use AI tools on Base Mainnet",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,11 +24,32 @@
     "langchain"
   ],
   "dependencies": {
-    "@golfgolfgolf200/x402-monetize": "^1.0.2",
+    "@warppay402/server": "^1.0.0",
     "viem": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "typescript": "^5.0.0"
+  },
+  "openclaw": {
+    "compat": {
+      "pluginApi": "1.0.0"
+    },
+    "build": {
+      "openclawVersion": "1.0.0"
+    },
+    "extensions": [
+      "dist/index.js"
+    ],
+    "configSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "privateKey": {
+          "type": "string",
+          "description": "Base wallet private key for paying x402 micropayments"
+        }
+      }
+    }
   }
 }
