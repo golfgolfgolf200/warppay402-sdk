@@ -32,6 +32,26 @@ export interface PdfExtractorResponse {
   textPreview: string;
 }
 
+export interface BrowserScrapeResponse {
+  success: boolean;
+  url: string;
+  content: string;
+}
+
+export interface ScreenshotResponse {
+  success: boolean;
+  url: string;
+  screenshotUrl?: string;
+  base64?: string;
+}
+
+export interface ExtractJsonResponse {
+  success: boolean;
+  url: string;
+  schema: any;
+  extractedData: Record<string, any>;
+}
+
 export class WarpPayClient {
   private baseUrl: string;
   private account;
@@ -164,5 +184,26 @@ export class WarpPayClient {
    */
   public async extractPdf(pdfUrl: string): Promise<PdfExtractorResponse> {
     return this.executePaidRequest<PdfExtractorResponse>("/api/v1/tools/pdf-extractor", { pdfUrl });
+  }
+
+  /**
+   * Executes JS-rendering browser scraper via proxy workers ($0.05 USDC on Base)
+   */
+  public async browserScrape(url: string): Promise<BrowserScrapeResponse> {
+    return this.executePaidRequest<BrowserScrapeResponse>("/api/v1/tools/browser-scraper", { url });
+  }
+
+  /**
+   * Renders target URL and returns full-page screenshot data ($0.10 USDC on Base)
+   */
+  public async renderScreenshot(url: string): Promise<ScreenshotResponse> {
+    return this.executePaidRequest<ScreenshotResponse>("/api/v1/tools/render-screenshot", { url });
+  }
+
+  /**
+   * Extracts structured JSON schema data from web pages ($0.15 USDC on Base)
+   */
+  public async extractJson(url: string, schema?: object): Promise<ExtractJsonResponse> {
+    return this.executePaidRequest<ExtractJsonResponse>("/api/v1/tools/extract-json", { url, schema });
   }
 }
