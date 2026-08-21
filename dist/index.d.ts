@@ -24,6 +24,23 @@ export interface PdfExtractorResponse {
     info: Record<string, any>;
     textPreview: string;
 }
+export interface BrowserScrapeResponse {
+    success: boolean;
+    url: string;
+    content: string;
+}
+export interface ScreenshotResponse {
+    success: boolean;
+    url: string;
+    screenshotUrl?: string;
+    base64?: string;
+}
+export interface ExtractJsonResponse {
+    success: boolean;
+    url: string;
+    schema: any;
+    extractedData: Record<string, any>;
+}
 export declare class WarpPayClient {
     private baseUrl;
     private account;
@@ -45,4 +62,16 @@ export declare class WarpPayClient {
      * Downloads and extracts text preview from a public PDF URL ($0.05 USDC on Base)
      */
     extractPdf(pdfUrl: string): Promise<PdfExtractorResponse>;
+    /**
+     * Executes JS-rendering browser scraper via proxy workers ($0.05 USDC on Base)
+     */
+    browserScrape(url: string): Promise<BrowserScrapeResponse>;
+    /**
+     * Renders target URL and returns full-page screenshot data ($0.10 USDC on Base)
+     */
+    renderScreenshot(url: string): Promise<ScreenshotResponse>;
+    /**
+     * Extracts structured JSON schema data from web pages ($0.15 USDC on Base)
+     */
+    extractJson(url: string, schema?: object): Promise<ExtractJsonResponse>;
 }

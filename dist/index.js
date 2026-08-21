@@ -121,5 +121,23 @@ class WarpPayClient {
     async extractPdf(pdfUrl) {
         return this.executePaidRequest("/api/v1/tools/pdf-extractor", { pdfUrl });
     }
+    /**
+     * Executes JS-rendering browser scraper via proxy workers ($0.05 USDC on Base)
+     */
+    async browserScrape(url) {
+        return this.executePaidRequest("/api/v1/tools/browser-scraper", { url });
+    }
+    /**
+     * Renders target URL and returns full-page screenshot data ($0.10 USDC on Base)
+     */
+    async renderScreenshot(url) {
+        return this.executePaidRequest("/api/v1/tools/render-screenshot", { url });
+    }
+    /**
+     * Extracts structured JSON schema data from web pages ($0.15 USDC on Base)
+     */
+    async extractJson(url, schema) {
+        return this.executePaidRequest("/api/v1/tools/extract-json", { url, schema });
+    }
 }
 exports.WarpPayClient = WarpPayClient;
