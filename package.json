@@ -1,7 +1,7 @@
 {
   "name": "@warppay402/sdk",
   "version": "1.1.0",
-  "description": "Official TypeScript SDK for WarpPay402 pay-per-use AI tools on Base Mainnet",
+  "description": "Official WarpPay402 TypeScript SDK: Enabling seamless pay-per-use AI tools across both Base Mainnet and Solana.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
