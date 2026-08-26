@@ -1,157 +1,194 @@
 import crypto from "node:crypto";
 import { Buffer } from "node:buffer";
 import { privateKeyToAccount } from "viem/accounts";
+import { Keypair, Connection, Transaction, PublicKey } from "@solana/web3.js";
+import { 
+  getAssociatedTokenAddress, 
+  createTransferInstruction, 
+  createAssociatedTokenAccountIdempotentInstruction 
+} from "@solana/spl-token";
+import bs58 from "bs58";
 
 export interface WarpPayConfig {
-  /** Base Mainnet private key of the agent's wallet funding the micro-payments */
-  privateKey: `0x${string}`;
+  /** Base Mainnet private key of the agent's wallet funding micro-payments */
+  privateKey?: `0x${string}`;
+  /** Solana Mainnet base58 private key funding micro-payments */
+  solanaPrivateKey?: string;
   /** Custom gateway URL (Defaults to https://api.warppay402.com) */
   baseUrl?: string;
-}
-
-export interface ScrapeResponse {
-  success: boolean;
-  title: string;
-  markdown: string;
-  truncated: boolean;
-}
-
-export interface BaseAnalyticsResponse {
-  success: boolean;
-  network: string;
-  address: string;
-  ethBalance: string;
-  nonce: number;
-  timestamp: string;
-}
-
-export interface PdfExtractorResponse {
-  success: boolean;
-  pages: number;
-  info: Record<string, any>;
-  textPreview: string;
-}
-
-export interface BrowserScrapeResponse {
-  success: boolean;
-  url: string;
-  content: string;
-}
-
-export interface ScreenshotResponse {
-  success: boolean;
-  url: string;
-  screenshotUrl?: string;
-  base64?: string;
-}
-
-export interface ExtractJsonResponse {
-  success: boolean;
-  url: string;
-  schema: any;
-  extractedData: Record<string, any>;
+  /** Custom Solana RPC URL */
+  solanaRpcUrl?: string;
 }
 
 export class WarpPayClient {
   private baseUrl: string;
-  private account;
+  private account?: ReturnType<typeof privateKeyToAccount>;
+  private solanaKeypair?: Keypair;
+  private solanaConnection: Connection;
 
   constructor(config: WarpPayConfig) {
     this.baseUrl = (config.baseUrl || "https://api.warppay402.com").replace(/\/$/, "");
-    
-    const rawKey = config.privateKey.trim();
-    const formattedKey = (rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as `0x${string}`;
-    this.account = privateKeyToAccount(formattedKey);
+    this.solanaConnection = new Connection(
+      config.solanaRpcUrl || "https://api.mainnet-beta.solana.com", 
+      "confirmed"
+    );
+
+    // EVM Account Setup
+    if (config.privateKey) {
+      const rawKey = config.privateKey.trim();
+      const formattedKey = (rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as `0x${string}`;
+      this.account = privateKeyToAccount(formattedKey);
+    }
+
+    // Solana Account Setup
+    if (config.solanaPrivateKey) {
+      const decodedSecret = bs58.decode(config.solanaPrivateKey.trim());
+      this.solanaKeypair = Keypair.fromSecretKey(decodedSecret);
+    }
+
+    if (!this.account && !this.solanaKeypair) {
+      throw new Error("WarpPayClient requires either a Base privateKey or a solanaPrivateKey.");
+    }
   }
 
   /**
-   * Internal helper handling the initial HTTP request, 402 Payment Required challenge,
-   * EIP-712 signing, and automated retry with x402 payment authorization headers.
+   * Handles multi-chain HTTP 402 Payment Required challenges dynamically.
    */
   private async executePaidRequest<T>(endpoint: string, payload: Record<string, any>): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    // 1. Initial Request
+    // 1. Initial Request Probe
     let response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    // 2. Handle x402 V2 Payment Challenge if HTTP 402 returned
+    // 2. Multi-Chain Settlement Challenge Response
     if (response.status === 402) {
       const challenge = await response.json();
+      const accepts: Array<any> = challenge.x402?.accepts || challenge.accepts || [];
 
-      const req = challenge.x402?.accepts?.[0] || challenge.accepts?.[0] || {};
-      const payTo = (req.payToAddress || req.payTo || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-      const assetContract = (req.asset || req.usdcAddress || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913") as `0x${string}`;
-      const value = BigInt(req.maxAmountRequired || req.amount || "10000");
+      // Check for Solana offer if solanaKeypair is available
+      const solanaReq = accepts.find((a) => a.network?.includes("solana"));
+      const evmReq = accepts.find((a) => a.network?.includes("eip155"));
 
-      const domain = {
-        name: req.extra?.name || "USD Coin",
-        version: req.extra?.version || "2",
-        chainId: 8453,
-        verifyingContract: assetContract,
-      };
+      let paymentPayload: any;
 
-      const types = {
-        TransferWithAuthorization: [
-          { name: "from", type: "address" },
-          { name: "to", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "validAfter", type: "uint256" },
-          { name: "validBefore", type: "uint256" },
-          { name: "nonce", type: "bytes32" },
-        ],
-      };
+      if (solanaReq && this.solanaKeypair) {
+        // Execute Solana L1 SPL-USDC Transaction Authorization
+        const payToPubkey = new PublicKey(solanaReq.payTo);
+        const usdcMint = new PublicKey(solanaReq.asset || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+        const amountUnits = BigInt(solanaReq.amount || solanaReq.maxAmountRequired || "10000"); // $0.01 USDC
 
-      const now = Math.floor(Date.now() / 1000);
-      const nonce = `0x${crypto.randomBytes(32).toString("hex")}` as `0x${string}`;
+        const senderPubkey = this.solanaKeypair.publicKey;
+        const senderAta = await getAssociatedTokenAddress(usdcMint, senderPubkey);
+        const recipientAta = await getAssociatedTokenAddress(usdcMint, payToPubkey);
 
-      const message = {
-        from: this.account.address,
-        to: payTo,
-        value,
-        validAfter: BigInt(0),
-        validBefore: BigInt(now + 3600),
-        nonce,
-      };
+        const tx = new Transaction();
+        tx.feePayer = senderPubkey;
+        tx.recentBlockhash = (await this.solanaConnection.getLatestBlockhash()).blockhash;
 
-      // Sign typed EIP-712 USDC TransferWithAuthorization data
-      const signature = await this.account.signTypedData({
-        domain,
-        types,
-        primaryType: "TransferWithAuthorization",
-        message,
-      });
+        // Idempotently create recipient ATA if required
+        tx.add(
+          createAssociatedTokenAccountIdempotentInstruction(
+            senderPubkey,
+            recipientAta,
+            payToPubkey,
+            usdcMint
+          )
+        );
 
-      const paymentPayload = {
-        x402Version: 2,
-        scheme: req.scheme || "exact",
-        network: req.network || "eip155:8453",
-        payload: {
-          authorization: {
-            from: this.account.address,
-            to: payTo,
-            value: value.toString(),
-            validAfter: "0",
-            validBefore: (now + 3600).toString(),
-            nonce,
+        // Append SPL-USDC Transfer instruction
+        tx.add(
+          createTransferInstruction(senderAta, recipientAta, senderPubkey, amountUnits)
+        );
+
+        tx.sign(this.solanaKeypair);
+        const serializedTx = Buffer.from(tx.serialize()).toString("base64");
+
+        paymentPayload = {
+          x402Version: 2,
+          scheme: solanaReq.scheme || "exact",
+          network: solanaReq.network || "solana:5eykt4wA89m8E5b9B5658p445VTc28",
+          signature: serializedTx,
+          paymentPayload: {
+            signature: serializedTx,
+            network: solanaReq.network
+          }
+        };
+      } else if (evmReq && this.account) {
+        // EVM EIP-712 Base Path
+        const payTo = (evmReq.payToAddress || evmReq.payTo) as `0x${string}`;
+        const assetContract = (evmReq.asset || evmReq.usdcAddress) as `0x${string}`;
+        const value = BigInt(evmReq.maxAmountRequired || evmReq.amount || "10000");
+
+        const domain = {
+          name: evmReq.extra?.name || "USD Coin",
+          version: evmReq.extra?.version || "2",
+          chainId: 8453,
+          verifyingContract: assetContract,
+        };
+
+        const types = {
+          TransferWithAuthorization: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" },
+          ],
+        };
+
+        const now = Math.floor(Date.now() / 1000);
+        const nonce = `0x${crypto.randomBytes(32).toString("hex")}` as `0x${string}`;
+
+        const message = {
+          from: this.account.address,
+          to: payTo,
+          value,
+          validAfter: BigInt(0),
+          validBefore: BigInt(now + 3600),
+          nonce,
+        };
+
+        const signature = await this.account.signTypedData({
+          domain,
+          types,
+          primaryType: "TransferWithAuthorization",
+          message,
+        });
+
+        paymentPayload = {
+          x402Version: 2,
+          scheme: evmReq.scheme || "exact",
+          network: evmReq.network || "eip155:8453",
+          payload: {
+            authorization: {
+              from: this.account.address,
+              to: payTo,
+              value: value.toString(),
+              validAfter: "0",
+              validBefore: (now + 3600).toString(),
+              nonce,
+            },
+            signature,
           },
-          signature,
-        },
-      };
+        };
+      } else {
+        throw new Error("No matching private key configured for returned 402 networks.");
+      }
 
       const encodedPayload = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
 
-      // Retry request with signed x402 headers
+      // Resubmit request with signed x402 headers
       response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-PAYMENT": encodedPayload,
           "PAYMENT-SIGNATURE": encodedPayload,
-          "X-PAYMENT-SIGNATURE": signature,
         },
         body: JSON.stringify(payload),
       });
@@ -165,45 +202,27 @@ export class WarpPayClient {
     return (await response.json()) as T;
   }
 
-  /**
-   * Scrapes any Web URL into clean Markdown for AI context ($0.01 USDC on Base)
-   */
-  public async scrapeWeb(url: string): Promise<ScrapeResponse> {
-    return this.executePaidRequest<ScrapeResponse>("/api/v1/tools/web-scraper", { url });
+  public async scrapeWeb(url: string): Promise<any> {
+    return this.executePaidRequest("/api/v1/tools/web-scraper", { url });
   }
 
-  /**
-   * Fetches Base Mainnet balance and transaction stats for any 0x wallet ($0.02 USDC on Base)
-   */
-  public async getBaseAnalytics(address: string): Promise<BaseAnalyticsResponse> {
-    return this.executePaidRequest<BaseAnalyticsResponse>("/api/v1/tools/base-analytics", { address });
+  public async getBaseAnalytics(address: string): Promise<any> {
+    return this.executePaidRequest("/api/v1/tools/base-analytics", { address });
   }
 
-  /**
-   * Downloads and extracts text preview from a public PDF URL ($0.05 USDC on Base)
-   */
-  public async extractPdf(pdfUrl: string): Promise<PdfExtractorResponse> {
-    return this.executePaidRequest<PdfExtractorResponse>("/api/v1/tools/pdf-extractor", { pdfUrl });
+  public async extractPdf(pdfUrl: string): Promise<any> {
+    return this.executePaidRequest("/api/v1/tools/pdf-extractor", { pdfUrl });
   }
 
-  /**
-   * Executes JS-rendering browser scraper via proxy workers ($0.05 USDC on Base)
-   */
-  public async browserScrape(url: string): Promise<BrowserScrapeResponse> {
-    return this.executePaidRequest<BrowserScrapeResponse>("/api/v1/tools/browser-scraper", { url });
+  public async browserScrape(url: string): Promise<any> {
+    return this.executePaidRequest("/api/v1/tools/browser-scraper", { url });
   }
 
-  /**
-   * Renders target URL and returns full-page screenshot data ($0.10 USDC on Base)
-   */
-  public async renderScreenshot(url: string): Promise<ScreenshotResponse> {
-    return this.executePaidRequest<ScreenshotResponse>("/api/v1/tools/render-screenshot", { url });
+  public async renderScreenshot(url: string): Promise<any> {
+    return this.executePaidRequest("/api/v1/tools/render-screenshot", { url });
   }
 
-  /**
-   * Extracts structured JSON schema data from web pages ($0.15 USDC on Base)
-   */
-  public async extractJson(url: string, schema?: object): Promise<ExtractJsonResponse> {
-    return this.executePaidRequest<ExtractJsonResponse>("/api/v1/tools/extract-json", { url, schema });
+  public async extractJson(url: string, schema?: object): Promise<any> {
+    return this.executePaidRequest("/api/v1/tools/extract-json", { url, schema });
   }
 }

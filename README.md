@@ -11,9 +11,12 @@ npm install @warppay402/sdk
 ```typescript
 import { WarpPayClient } from "@warppay402/sdk";
 
-// Initialize with your AI agent's Base wallet private key
+import { WarpPayClient } from "@warppay402/sdk";
+
+// Initialize with Base EVM, Solana L1, or both
 const client = new WarpPayClient({
-  privateKey: process.env.CUSTOMER_PRIVATE_KEY as `0x${string}`,
+  privateKey: process.env.CUSTOMER_BASE_KEY as `0x${string}`,
+  solanaPrivateKey: process.env.CUSTOMER_SOLANA_KEY,
 });
 
 async function main() {

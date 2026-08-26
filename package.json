@@ -24,7 +24,10 @@
     "langchain"
   ],
   "dependencies": {
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.98.4",
     "@warppay402/server": "^1.0.0",
+    "bs58": "^6.0.0",
     "viem": "^2.0.0"
   },
   "devDependencies": {

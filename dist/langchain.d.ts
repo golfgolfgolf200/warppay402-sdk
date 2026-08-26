@@ -7,7 +7,7 @@ export declare function createWarpPayLangChainTools(client: WarpPayClient): ({
     description: string;
     func: ({ url }: {
         url: string;
-    }) => Promise<string>;
+    }) => Promise<any>;
 } | {
     name: string;
     description: string;
@@ -19,5 +19,5 @@ export declare function createWarpPayLangChainTools(client: WarpPayClient): ({
     description: string;
     func: ({ pdfUrl }: {
         pdfUrl: string;
-    }) => Promise<string>;
+    }) => Promise<any>;
 })[];
