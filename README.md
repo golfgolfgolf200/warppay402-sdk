@@ -73,8 +73,10 @@ const tools = createWarpPayLangChainTools(client);
 ```
 ## 🌐 API Gateway & Specs
 
-Gateway: https://api.warppay402.com
+MCP Gateway Endpoint: https://api.warppay402.com/mcp
 
 MCP Manifest: https://api.warppay402.com/.well-known/mcp.json
+
+REST Gateway Base: https://api.warppay402.com
 
 OpenAPI Spec: https://api.warppay402.com/openapi.json
