@@ -53,13 +53,15 @@ main();
 ```
 ## 🛠️ Available Methods & Pricing
 
-* **`scrapeWeb(url)`** — `$0.01 USDC` — Extracts clean Markdown from web pages.
-* **`getBaseAnalytics(address)`** — `$0.02 USDC` — Fetches ETH balance and nonce stats.
-* **`browserScrape(url)`** — `$0.05 USDC` — Unblockable JS browser scraping via proxy workers.
-* **`extractPdf(pdfUrl)`** — `$0.05 USDC` — Parses text preview from public PDF URLs.
-* **`renderScreenshot(url)`** — `$0.10 USDC` — Renders target URL and returns full-page screenshot data.
-* **`extractJson(url, schema?)`** — `$0.15 USDC` — Parses web pages into structured JSON data.
-
+* **`getPublicDataFeed(filename)`** -- `$0.0001 USDC` -- Retrieves signed attestation JSON payloads.
+* **`getDataFeed(feedId)`** -- `$0.001 USDC` -- Fetches pre-scraped market and protocol intelligence feeds.
+* **`scrapeWeb(url)`** -- `$0.001 USDC` -- Extracts clean Markdown from web pages.
+* **`getBaseAnalytics(address)`** -- `$0.002 USDC` -- Fetches ETH balance and nonce stats.
+* **`browserScrape(url)`** -- `$0.005 USDC` -- Unblockable JS browser scraping via proxy workers.
+* **`extractPdf(pdfUrl)`** -- `$0.005 USDC` -- Parses text preview from public PDF URLs.
+* **`renderScreenshot(url)`** -- `$0.01 USDC` -- Renders target URL and returns full-page screenshot data.
+* **`extractJson(url, schema?)`** -- `$0.01 USDC` -- Parses web pages into structured JSON data.
+* **`verifySmartContract(address)`** -- `$0.02 USDC` -- Source code analysis, ABI fetching, and proxy validation.
 ## 🛠️ LangChain Integration
 ```typescript
 import { WarpPayClient, createWarpPayLangChainTools } from "@warppay402/sdk";
